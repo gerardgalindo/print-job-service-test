@@ -88,4 +88,51 @@ class JobResourceTest {
         mockMvc.perform(get("/jobs/{id}", "nonexistent-id"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void getResult_doneJob_returns200() throws Exception {
+        Job doneJob = new Job();
+        doneJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
+        doneJob.setStatus(JobStatus.DONE);
+        String content = "Rendered invoice content";
+        doneJob.setResultContent(content);
+        jobRepository.save(doneJob);
+
+        mockMvc.perform(get("/jobs/{id}/result", doneJob.getId()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(content));
+    }
+
+    @Test
+    void getResult_queuedJob_returns409() throws Exception {
+        mockMvc.perform(get("/jobs/{id}/result", queuedJob.getId()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Job is still processing: " + queuedJob.getId()));
+    }
+
+    @Test
+    void getResult_processingJob_returns409() throws Exception {
+        Job processingJob = new Job();
+        processingJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
+        processingJob.setStatus(JobStatus.PROCESSING);
+        jobRepository.save(processingJob);
+
+        mockMvc.perform(get("/jobs/{id}/result", processingJob.getId()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Job is still processing: " + processingJob.getId()));
+    }
+
+    @Test
+    void getResult_failedJob_returns404() throws Exception {
+        mockMvc.perform(get("/jobs/{id}/result", failedJob.getId()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("No result available for job: " + failedJob.getId()));
+    }
+
+    @Test
+    void getResult_missingJob_returns404() throws Exception {
+        mockMvc.perform(get("/jobs/{id}/result", "nonexistent-id"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Job not found: nonexistent-id"));
+    }
 }

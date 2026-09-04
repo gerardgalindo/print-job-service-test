@@ -1,9 +1,10 @@
 package com.adobe.printservice.web;
 
+import com.adobe.printservice.exception.JobStillProcessingException;
+import com.adobe.printservice.exception.ResourceNotFoundException;
 import com.adobe.printservice.model.Job;
 import com.adobe.printservice.model.JobStatus;
 import com.adobe.printservice.repository.JobRepository;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,9 +32,22 @@ public class JobResource {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Job> getJob(@PathVariable String id) {
+    public Job getJob(@PathVariable String id) {
         return jobRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + id));
+    }
+
+    @GetMapping("/{id}/result")
+    public String getResult(@PathVariable String id) {
+        Job job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + id));
+
+        if (job.getStatus() == JobStatus.DONE) {
+            return job.getResultContent();
+        }
+        if (job.getStatus() == JobStatus.QUEUED || job.getStatus() == JobStatus.PROCESSING) {
+            throw new JobStillProcessingException("Job is still processing: " + id);
+        }
+        throw new ResourceNotFoundException("No result available for job: " + id);
     }
 }
