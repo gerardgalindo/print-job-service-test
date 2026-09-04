@@ -45,6 +45,7 @@ class JobResourceTest {
         failedJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
         failedJob.setStatus(JobStatus.FAILED);
         failedJob.setErrorMessage("Simulated failure");
+        failedJob.setAttempts(3);
         jobRepository.save(failedJob);
     }
 
@@ -68,7 +69,8 @@ class JobResourceTest {
                 .andExpect(jsonPath("$[0].id").value(failedJob.getId()))
                 .andExpect(jsonPath("$[0].status").value("FAILED"))
                 .andExpect(jsonPath("$[0].templateId").value(failedJob.getTemplateId()))
-                .andExpect(jsonPath("$[0].errorMessage").value(failedJob.getErrorMessage()));
+                .andExpect(jsonPath("$[0].errorMessage").value(failedJob.getErrorMessage()))
+                .andExpect(jsonPath("$[0].attempts").value(failedJob.getAttempts()));
     }
 
     @Test
