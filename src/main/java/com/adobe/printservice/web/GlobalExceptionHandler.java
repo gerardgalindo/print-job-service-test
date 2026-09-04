@@ -1,5 +1,6 @@
 package com.adobe.printservice.web;
 
+import com.adobe.printservice.exception.InvalidJobRequestException;
 import com.adobe.printservice.exception.JobStillProcessingException;
 import com.adobe.printservice.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(JobStillProcessingException.class)
     public ResponseEntity<ErrorResponse> handleStillProcessing(JobStillProcessingException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidJobRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRequest(InvalidJobRequestException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(ex.getMessage()));
     }
 }

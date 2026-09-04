@@ -81,6 +81,14 @@ need to build template management. Your job is to implement the render job lifec
 We're not going to tell you how to implement the queue/worker, the retry policy, or what your
 readiness check should verify - that's for you to decide.
 
+### Design Decisions
+
+**Queue/Worker:** I used Spring's `@Async` annotation in the `JobProcessor` service method. When a job is submitted `POST /jobs`, the controller saves the job as `QUEUED` , calls `jobProcessor.processJob(jobId)` and returns immediately. The `@Async` annotation causes this method to execute in a separate thread pool, returning control to the HTTP thread instantly. 
+
+**Retry Policy:** The processor retries up to 3 attempts per job. On each attempt, if rendering fails, the error message is persisted and the attempt counter incremented. After 3 consecutive failures, the job is marked as `FAILED`.
+
+**Readiness Check:** The readiness endpoint verifies database connectivity (not just that the HTTP server is up). It uses a simple `SELECT 1` query against the data source.
+
 
 ### Optional (not required to complete the exercise)
 

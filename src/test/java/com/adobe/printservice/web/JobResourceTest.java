@@ -14,7 +14,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -22,6 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class JobResourceTest {
+
+    private static final String INVOICE_TEMPLATE_ID = "b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10";
 
     @Autowired
     private MockMvc mockMvc;
@@ -37,16 +41,56 @@ class JobResourceTest {
         jobRepository.deleteAll();
 
         queuedJob = new Job();
-        queuedJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
+        queuedJob.setTemplateId(INVOICE_TEMPLATE_ID);
         queuedJob.setStatus(JobStatus.QUEUED);
         jobRepository.save(queuedJob);
 
         failedJob = new Job();
-        failedJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
+        failedJob.setTemplateId(INVOICE_TEMPLATE_ID);
         failedJob.setStatus(JobStatus.FAILED);
         failedJob.setErrorMessage("Simulated failure");
         failedJob.setAttempts(3);
         jobRepository.save(failedJob);
+    }
+
+    @Test
+    void createJob_validTemplate_returns201WithQueuedStatus() throws Exception {
+        mockMvc.perform(post("/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"templateId\":\"" + INVOICE_TEMPLATE_ID + "\",\"parameters\":{\"key\":\"value\"}}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id", notNullValue()))
+                .andExpect(jsonPath("$.templateId").value(INVOICE_TEMPLATE_ID))
+                .andExpect(jsonPath("$.status").value("QUEUED"))
+                .andExpect(jsonPath("$.createdAt", notNullValue()))
+                .andExpect(jsonPath("$.updatedAt", notNullValue()));
+    }
+
+    @Test
+    void createJob_invalidTemplate_returns400() throws Exception {
+        mockMvc.perform(post("/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"templateId\":\"nonexistent-template\",\"parameters\":{}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Template not found: nonexistent-template"));
+    }
+
+    @Test
+    void createJob_missingTemplateId_returns400() throws Exception {
+        mockMvc.perform(post("/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"parameters\":{\"key\":\"value\"}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("templateId is required"));
+    }
+
+    @Test
+    void createJob_blankTemplateId_returns400() throws Exception {
+        mockMvc.perform(post("/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"templateId\":\"  \",\"parameters\":{}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("templateId is required"));
     }
 
     @Test
@@ -92,7 +136,7 @@ class JobResourceTest {
     @Test
     void getResult_doneJob_returns200() throws Exception {
         Job doneJob = new Job();
-        doneJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
+        doneJob.setTemplateId(INVOICE_TEMPLATE_ID);
         doneJob.setStatus(JobStatus.DONE);
         String content = "Rendered invoice content";
         doneJob.setResultContent(content);
@@ -113,7 +157,7 @@ class JobResourceTest {
     @Test
     void getResult_processingJob_returns409() throws Exception {
         Job processingJob = new Job();
-        processingJob.setTemplateId("b6f1e6a2-6b8b-4a9d-9c2e-3f2d8a2f9b10");
+        processingJob.setTemplateId(INVOICE_TEMPLATE_ID);
         processingJob.setStatus(JobStatus.PROCESSING);
         jobRepository.save(processingJob);
 
