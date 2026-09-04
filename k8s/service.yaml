@@ -1,0 +1,69 @@
+# =============================================================================
+# Kubernetes Service for Print/Render Job Service
+# =============================================================================
+# A Service provides stable networking for a set of pods. Pods are ephemeral
+# (they can be created, destroyed, and replaced at any time), so you can't
+# rely on their IP addresses. A Service gives them a stable DNS name and IP.
+#
+# Key concepts for beginners:
+#   - ClusterIP (default): Only accessible from within the cluster
+#   - NodePort: Accessible from outside the cluster via <NodeIP>:<NodePort>
+#   - LoadBalancer: Provisions a cloud load balancer (AWS ELB, GCP LB, etc.)
+#
+# For local testing with minikube, use NodePort. For production, use LoadBalancer
+# or an Ingress controller.
+# =============================================================================
+
+apiVersion: v1                # The API group/version for core resources (Services, Pods, etc.)
+kind: Service                 # This manifest describes a Service resource
+metadata:
+  name: print-service         # DNS name: other pods can reach us at print-service.default.svc.cluster.local
+  labels:
+    app: print-service        # Labels for organization
+spec:
+  # -------------------------------------------------------------------------
+  # TYPE: How is this Service exposed?
+  # -------------------------------------------------------------------------
+  # NodePort: Exposes the Service on each node's IP at a static port (30080).
+  # You can access it from outside the cluster via http://<any-node-ip>:30080.
+  #
+  # For production on cloud providers, change to LoadBalancer.
+  # For internal services (like the database), keep as ClusterIP (default).
+  type: NodePort
+
+  # -------------------------------------------------------------------------
+  # SELECTOR: Which pods should receive traffic?
+  # -------------------------------------------------------------------------
+  # This must match the labels on the pods managed by the Deployment.
+  # All pods with label app=print-service will be included as endpoints.
+  selector:
+    app: print-service        # Route traffic to pods with this label
+
+  # -------------------------------------------------------------------------
+  # PORTS: Map incoming port to container port
+  # -------------------------------------------------------------------------
+  ports:
+    - name: http              # Port name (optional but good practice)
+      port: 8080              # Port the Service listens on (within the cluster)
+      targetPort: 8080        # Port on the container to forward to
+      nodePort: 30080         # Port exposed on each node (only for NodePort type)
+      protocol: TCP           # Default is TCP
+
+# =============================================================================
+# PostgreSQL Service (for reference)
+# =============================================================================
+# In a real production setup, you'd also have a Service for PostgreSQL.
+# Example (not applied here since we use docker-compose for local dev):
+#
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: postgres-service
+# spec:
+#   type: ClusterIP          # Only accessible within the cluster
+#   selector:
+#     app: postgres
+#   ports:
+#     - port: 5432
+#       targetPort: 5432
+# =============================================================================

@@ -1,0 +1,131 @@
+# =============================================================================
+# Kubernetes Deployment for Print/Render Job Service
+# =============================================================================
+# A Deployment tells Kubernetes how to create and update pods (instances of our app).
+# It manages replicas, rolling updates, and ensures the desired state is maintained.
+#
+# Key concepts for beginners:
+#   - Pod: The smallest deployable unit. Contains one or more containers.
+#   - ReplicaSet: Ensures N pods are running at all times (managed by Deployment).
+#   - Label: Key-value pairs used to organize and select resources.
+# =============================================================================
+
+apiVersion: apps/v1           # The API group/version for Deployments (stable since K8s 1.9)
+kind: Deployment              # This manifest describes a Deployment resource
+metadata:
+  name: print-service         # Name of the Deployment (used in kubectl commands)
+  labels:
+    app: print-service        # Labels help identify this resource (like tags in cloud)
+spec:
+  # -------------------------------------------------------------------------
+  # REPLICAS: How many instances of our app to run
+  # -------------------------------------------------------------------------
+  # We run 2 replicas to demonstrate multi-instance safety.
+  # Kubernetes will ensure 2 pods are always running. If one crashes,
+  # a new one is automatically created.
+  replicas: 2
+
+  # -------------------------------------------------------------------------
+  # SELECTOR: Which pods does this Deployment manage?
+  # -------------------------------------------------------------------------
+  # This must match the labels in podTemplate.metadata.labels below.
+  # Kubernetes uses this to know which pods belong to this Deployment.
+  selector:
+    matchLabels:
+      app: print-service      # Only manage pods with this label
+
+  # -------------------------------------------------------------------------
+  # STRATEGY: How to update pods when the Deployment changes
+  # -------------------------------------------------------------------------
+  # RollingUpdate is the default: it gradually replaces old pods with new ones.
+  # This means zero downtime during deployments.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1             # Allow 1 extra pod during update (can temporarily have 3)
+      maxUnavailable: 0       # Never reduce below 2 healthy pods during update
+
+  # -------------------------------------------------------------------------
+  # TEMPLATE: The blueprint for new pods
+  # -------------------------------------------------------------------------
+  # This is like a "pod recipe" that the Deployment uses to create new pods.
+  template:
+    metadata:
+      labels:
+        app: print-service    # Labels applied to each pod (must match selector above)
+    spec:
+      # -----------------------------------------------------------------------
+      # CONTAINERS: The actual applications running in the pod
+      # -----------------------------------------------------------------------
+      containers:
+        - name: print-service           # Container name (for kubectl logs, exec, etc.)
+          image: print-service:latest   # Docker image to use (built from Dockerfile)
+          imagePullPolicy: Never        # Don't pull from registry (use local image from docker-compose)
+          ports:
+            - containerPort: 8080       # The port our Spring Boot app listens on
+
+          # -------------------------------------------------------------------
+          # ENVIRONMENT VARIABLES: Configure the app (same as docker-compose.yml)
+          # -------------------------------------------------------------------
+          # These override the defaults in application.properties.
+          # In production, you'd use a ConfigMap or Secrets instead of hardcoding.
+          env:
+            - name: DB_HOST
+              value: postgres-service    # K8s Service name for PostgreSQL (defined in service.yaml)
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: printservice
+            - name: DB_USER
+              value: printservice
+            - name: DB_PASSWORD
+              value: printservice        # In production, use a Secret!
+
+          # -------------------------------------------------------------------
+          # LIVENESS PROBE: Is the container alive?
+          # -------------------------------------------------------------------
+          # Kubernetes periodically calls this endpoint. If it fails (non-200),
+          # Kubernetes restarts the container. This handles cases like deadlocks
+          # where the process is running but not functioning.
+          #
+          # Our liveness probe just checks if the Spring Boot actuator is responding.
+          # This is a lightweight check that doesn't verify database connectivity.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30    # Wait 30s after container starts (Spring Boot needs time)
+            periodSeconds: 10          # Check every 10 seconds
+            timeoutSeconds: 3          # Fail if no response within 3 seconds
+            failureThreshold: 3        # Restart after 3 consecutive failures
+
+          # -------------------------------------------------------------------
+          # READINESS PROBE: Is the container ready to receive traffic?
+          # -------------------------------------------------------------------
+          # Kubernetes only sends traffic to pods that pass the readiness probe.
+          # If this fails, the pod is removed from the Service's endpoints.
+          #
+          # Our readiness probe checks BOTH the app AND database connectivity.
+          # This ensures we only route traffic to instances that can actually
+          # serve requests (not just ones where the JVM is running).
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20    # Slightly shorter than liveness (readiness recovers faster)
+            periodSeconds: 5           # Check more frequently than liveness
+            timeoutSeconds: 3
+            failureThreshold: 3        # Remove from traffic after 3 failures
+
+          # -------------------------------------------------------------------
+          # RESOURCE LIMITS: How much CPU/memory this container can use
+          # -------------------------------------------------------------------
+          # Always set these! Without them, a misbehaving container can starve
+          # other pods or the node itself.
+          resources:
+            requests:
+              memory: "256Mi"          # Minimum memory the container needs
+              cpu: "250m"              # Minimum CPU (0.25 cores)
+            limits:
+              memory: "512Mi"          # Maximum memory (container killed if exceeded)
+              cpu: "500m"              # Maximum CPU (throttled if exceeded)

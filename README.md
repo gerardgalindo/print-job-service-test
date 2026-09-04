@@ -102,6 +102,20 @@ readiness check should verify - that's for you to decide.
 - A Kubernetes `Deployment`/`Service` manifest for this app (it does not need to be applied to a
   real cluster - we're interested in the manifest itself, e.g. how you wire up probes).
 
+### Multi-Instance Setup (Optional)
+
+The `docker-compose.yml` runs two app instances (`app1` on port 8080, `app2` on port 8081) sharing the same PostgreSQL database.
+
+**Why double processing cannot happen with the current architecture:**
+
+The processing model is **event-driven**, not poll-based. When `POST /jobs` is received:
+
+1. The controller saves the job as `QUEUED` to the shared database
+2. The controller immediately calls `jobProcessor.processJob(jobId)` on its own `@Async` thread
+3. That same instance processes the job — no other instance is involved
+
+There is no background thread scanning for `QUEUED` jobs across instances. Each instance only processes the jobs it creates itself. Instance B has no way to discover or pick up a job created by Instance A.
+
 ### How to run
 
 Building
