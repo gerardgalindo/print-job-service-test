@@ -46,6 +46,12 @@ need to build template management. Your job is to implement the render job lifec
   `DONE`. Decide yourself what should happen if it's called before the job finishes, or if the
   job failed.
 
+- **Liveness endpoint**: `GET /health/liveness` - returns `200 OK` if the service is running.
+
+- **Readiness endpoint**: `GET /health/readiness` - returns `200 OK` if the service is ready to take traffic.
+
+- **Metrics endpoint**: `GET /metrics` - returns some basic metrics about the service (job counts by status).
+
 ### Required
 
 - Your solution - code, commit messages, and README - must be in English.
@@ -87,8 +93,7 @@ readiness check should verify - that's for you to decide.
 
 **Retry Policy:** The processor retries up to 3 attempts per job. On each attempt, if rendering fails, the error message is persisted and the attempt counter incremented. After 3 consecutive failures, the job is marked as `FAILED`.
 
-**Readiness Check:** The readiness endpoint verifies database connectivity (not just that the HTTP server is up). It uses a simple `SELECT 1` query against the data source.
-
+**Readiness Check:** The readiness endpoint verifies database connectivity.
 
 ### Optional (not required to complete the exercise)
 
