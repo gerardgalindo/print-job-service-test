@@ -37,7 +37,7 @@ public class JobResource {
     }
 
     @PostMapping
-    public ResponseEntity<Job> createJob(@RequestBody CreateJobRequest request) {
+    public ResponseEntity<CreateJobResponse> createJob(@RequestBody CreateJobRequest request) {
         if (request.templateId() == null || request.templateId().isBlank()) {
             throw new InvalidJobRequestException("templateId is required");
         }
@@ -53,7 +53,7 @@ public class JobResource {
 
         jobProcessor.processJob(job.getId());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(job);
+        return ResponseEntity.status(HttpStatus.CREATED).body(CreateJobResponse.from(job));
     }
 
     @GetMapping

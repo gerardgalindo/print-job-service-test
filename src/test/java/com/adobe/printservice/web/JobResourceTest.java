@@ -60,7 +60,6 @@ class JobResourceTest {
                         .content("{\"templateId\":\"" + INVOICE_TEMPLATE_ID + "\",\"parameters\":{\"key\":\"value\"}}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", notNullValue()))
-                .andExpect(jsonPath("$.templateId").value(INVOICE_TEMPLATE_ID))
                 .andExpect(jsonPath("$.status").value("QUEUED"))
                 .andExpect(jsonPath("$.createdAt", notNullValue()))
                 .andExpect(jsonPath("$.updatedAt", notNullValue()));

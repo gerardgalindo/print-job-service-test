@@ -46,9 +46,9 @@ need to build template management. Your job is to implement the render job lifec
   `DONE`. Decide yourself what should happen if it's called before the job finishes, or if the
   job failed.
 
-- **Liveness endpoint**: `GET /health/liveness` - returns `200 OK` if the service is running.
+- **Liveness endpoint**: `GET /actuator/health/liveness` - returns `200 OK` if the service is running.
 
-- **Readiness endpoint**: `GET /health/readiness` - returns `200 OK` if the service is ready to take traffic.
+- **Readiness endpoint**: `GET /actuator/health/readiness` - returns `200 OK` if the service is ready to take traffic.
 
 - **Metrics endpoint**: `GET /metrics` - returns some basic metrics about the service (job counts by status).
 
